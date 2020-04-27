@@ -7,15 +7,31 @@ output: html_document
 
 ```{r setup, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyr)
 library(asrsMethods)
-library(ggplot2)
-library(lubridate)
 library(zoo)
+library(ggplot2)
 ```
 
 ```{r}
 factordat=read.csv("factordat.csv")
 factordat$dateym=as.yearmon(as.Date(factordat$date,format="%m/%d/%Y"))
-us=factordat[!is.na(factordat$asrs_us_factors)]
+us=factordat[!is.na(factordat$asrs_us_factors),c(-1,-2,-4,-5,-6,-7,-8)]
+uslong=gather(us,"Asset","Return",-dateym)
+ggplot(uslong,aes(x=Asset,y=Return))+geom_boxplot()
+```
 
+
+```{r}
+us2=data.frame(dateym=us$dateym,vs_msci_lc=us$asrs_us_factors-us$msci_usa_lc_total_return,
+               vs_msci_imi=us$asrs_us_factors-us$msci_usa_imi_total_return,
+               vs_spx=us$asrs_us_factors-us$spx_total_return)
+us2long=gather(us2,"Comparative_Return","Excess_Return",-dateym)
+ggplot(us2long,aes(x=Comparative_Return,y=Excess_Return))+geom_boxplot()+ggtitle("ASRS USA Factors Excess Return")
+```
+
+```{r}
+t.test(us2$vs_spx,mu=0,alternative="less")
+t.test(us2$vs_msci_imi,mu=0,alternative="less")
+t.test(us2$vs_msci_lc,mu=0,alternative="less")
 ```
