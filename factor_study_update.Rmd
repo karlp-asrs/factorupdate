@@ -1,16 +1,86 @@
 ---
-title: "Factor Study Update"
+title: "ASRS Sci Beta Factor Experience"
 author: "Karl Polen"
 date: "April 27, 2020"
 output: html_document
 ---
 
+This report does some quick statistical analysis of ASRS experience with the Sci Beta factor portfolios.  The analysis covers returns from the inception of the US Factor portfolio in august of 2017 and the EAFE portfolio in June of 2018.  For the US portfolio, we show a comparison to S&P 500, MSCI USA Large Cap and MSCI USA IMI (all cap).  a
+
+### US Portfolio
+
+#### Box Plots of Monthly Returns
+
 ```{r setup, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyr)
-library(asrsMethods)
 library(zoo)
 library(ggplot2)
+coneplot = function (return, annual_expected_return, annual_standard_deviation, 
+    periodicity = c("y", "q", "m"), ylabel = NULL) 
+{
+    n = length(return)
+    months = 0:n
+    timelabel = months
+    if (is.zoo(return)) {
+        datehold = time(return)
+        if (class(datehold) == "Date") {
+            if (periodicity == "y") 
+                datehold = year(datehold)
+            if (periodicity == "q") 
+                datehold = as.yearqtr(datehold)
+            if (periodicity == "m") 
+                datehold = as.yearmon(datehold)
+        }
+        timelabel = as.numeric(datehold)
+    }
+    if (periodicity == "y") {
+        expected_return = annual_expected_return
+        standard_deviation = annual_standard_deviation
+        if (is.zoo(return)) {
+            timelabel = c(timelabel[1] - 1, timelabel)
+        }
+        xlabel = "Yearly Data"
+    }
+    if (periodicity == "q") {
+        expected_return = -1 + exp(log(1 + annual_expected_return)/4)
+        standard_deviation = annual_standard_deviation/sqrt(4)
+        if (is.zoo(return)) {
+            timelabel = c(timelabel[1] - (1/12), timelabel)
+        }
+        xlabel = "Quarterly Data"
+    }
+    if (periodicity == "m") {
+        expected_return = -1 + exp(log(1 + annual_expected_return)/12)
+        standard_deviation = annual_standard_deviation/sqrt(12)
+        if (is.zoo(return)) {
+            timelabel = c(timelabel[1] - 0.25, timelabel)
+        }
+        xlabel = "Monthly Data"
+    }
+    expected_gd = c(1, exp(cumsum(rep(log(1 + expected_return), 
+        n))))
+    actual_gd = c(1, exp(cumsum(log(1 + coredata(return)))))
+    sigmult=c(0,(1:n)/(sqrt(1:n)))
+    one_sigma_up = expected_gd + (standard_deviation * sigmult)
+    two_sigma_up = expected_gd + (2 * standard_deviation * sigmult)
+    one_sigma_down = expected_gd - (standard_deviation * sigmult)
+    two_sigma_down = expected_gd - (2 * standard_deviation * 
+        sigmult)
+    conedf = data.frame(timelabel, expected_gd, actual_gd, one_sigma_up, 
+        two_sigma_up, one_sigma_down, two_sigma_down)
+    if (is.null(ylabel)) 
+        ylabel = names(x)[1]
+    x = ggplot(conedf, (aes(x = timelabel))) + ylab(ylabel) + 
+        xlab(xlabel) + geom_line(linetype = 2, colour = "black", 
+        aes(y = expected_gd)) + geom_line(colour = "blue", aes(y = actual_gd)) + 
+        geom_line(linetype = 2, colour = "orange", aes(y = one_sigma_up)) + 
+        geom_line(linetype = 2, colour = "orange", aes(y = one_sigma_down)) + 
+        geom_line(linetype = 2, colour = "red", aes(y = two_sigma_up)) + 
+        geom_line(linetype = 2, colour = "red", aes(y = two_sigma_down))
+    return(x)
+}
+
 ```
 
 ```{r}
@@ -21,6 +91,7 @@ uslong=gather(us,"Asset","Return",-dateym)
 ggplot(uslong,aes(x=Asset,y=Return))+geom_boxplot()
 ```
 
+#### Box Plots of Monthly Excess Returns
 
 ```{r}
 us2=data.frame(dateym=us$dateym,vs_msci_lc=us$asrs_us_factors-us$msci_usa_lc_total_return,
@@ -30,8 +101,49 @@ us2long=gather(us2,"Comparative_Return","Excess_Return",-dateym)
 ggplot(us2long,aes(x=Comparative_Return,y=Excess_Return))+geom_boxplot()+ggtitle("ASRS USA Factors Excess Return")
 ```
 
+#### T test of null hypothesis that excess returns are greater than zero
+
 ```{r}
 t.test(us2$vs_spx,mu=0,alternative="less")
 t.test(us2$vs_msci_imi,mu=0,alternative="less")
 t.test(us2$vs_msci_lc,mu=0,alternative="less")
+```
+
+#### Cone Plots of Excess returns compared to performance expectation of 50bp excess performance with 250bp tracking error
+
+```{r}
+coneplot(zoo(us2$vs_spx,as.Date(us2$dateym)),.005,.025,"m","USA Factors vs SPX")
+coneplot(zoo(us2$vs_msci_imi,as.Date(us2$dateym)),.005,.025,"m","USA Factors vs MSCI IMI")
+coneplot(zoo(us2$vs_msci_lc,as.Date(us2$dateym)),.005,.025,"m","USA Factors vs MSCI LC")
+```
+
+### EAFE Factor Portfolio
+
+#### Box Plots of Monthly Returns
+
+```{r}
+efa=factordat[!is.na(factordat$asrs_eafe_factors),c(-1,-2,-3,-5,-6,-7,-9,-10,-11)]
+efalong=gather(efa,"Asset","Return",-dateym)
+ggplot(efalong,aes(x=Asset,y=Return))+geom_boxplot()
+
+```
+
+#### Box Plot of Monthly Excess Return
+
+```{r}
+efa2=data.frame(dateym=efa$dateym,vs_eafe=efa$asrs_eafe_factors-efa$eafe_total_return)
+efa2long=gather(efa2,"Comparative_Return","Excess_Return",-dateym)
+ggplot(efa2long,aes(x=Comparative_Return,y=Excess_Return))+geom_boxplot()+ggtitle("ASRS USA Factors Excess Return")
+```
+
+#### T test of null hypothesis that excess returns are greater than zero
+
+```{r}
+t.test(efa2$vs_eafe,mu=0,alternative="less")
+```
+
+#### Cone Plot of excess return with expected 50bp outperformance with 250bp tracking error
+
+```{r}
+coneplot(zoo(efa2$vs_eafe,as.Date(efa2$dateym)),.005,.025,"m","EAFE Factors vs EAFE")
 ```
