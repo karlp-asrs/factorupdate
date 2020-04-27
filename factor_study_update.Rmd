@@ -1,0 +1,21 @@
+---
+title: "Factor Study Update"
+author: "Karl Polen"
+date: "April 27, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(asrsMethods)
+library(ggplot2)
+library(lubridate)
+library(zoo)
+```
+
+```{r}
+factordat=read.csv("factordat.csv")
+factordat$dateym=as.yearmon(as.Date(factordat$date,format="%m/%d/%Y"))
+us=factordat[!is.na(factordat$asrs_us_factors)]
+
+```
