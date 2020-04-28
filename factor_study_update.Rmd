@@ -147,3 +147,11 @@ t.test(efa2$vs_eafe,mu=0,alternative="less")
 ```{r}
 coneplot(zoo(efa2$vs_eafe,as.Date(efa2$dateym)),.005,.025,"m","EAFE Factors vs EAFE")
 ```
+
+
+#### Regression analysis
+
+```{r}
+x=lm(efa$asrs_eafe_factors~efa$eafe_total_return)
+summary(x)
+```
